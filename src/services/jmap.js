@@ -6,10 +6,16 @@ const te = new TextEncoder();
 const b64 = (s) => btoa(String.fromCharCode(...te.encode(s)));
 
 export class JMAPClient {
-  constructor({ baseUrl, username, password }) {
+  constructor({ baseUrl, username, password, token }) {
     this.base = (baseUrl || "").replace(/\/$/, "");
     this.sessionUrl = this.base + "/.well-known/jmap";
-    this.AUTH = "Basic " + b64(`${username}:${password}`);
+    
+    if (this.token === undefined) {
+      this.AUTH = "Basic " + b64(`${username}:${password}`);
+    }
+    else {
+      this.AUTH = "Bearer " + token;
+    }
 
     this.apiUrl = null;
     this.accountId = null;
@@ -545,4 +551,5 @@ export class JMAPClient {
 }
 
 export const JMAP = { Client: JMAPClient, NS: { CORE, MAIL, SUBMIT } };
+
 
