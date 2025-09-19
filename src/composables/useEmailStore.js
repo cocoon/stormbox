@@ -97,13 +97,36 @@ export function useEmailStore() {
 
   // Connect to JMAP server
   const connect = async (credentials) => {
-    if (!credentials || !credentials.username || !credentials.password) {
-      error.value = "Username and password required.";
+    //if (!credentials || !credentials.username || !credentials.password) {
+    //  error.value = "Username and password required.";
+    if (!credentials || !credentials.username) {
+      error.value = "Username required."; //for now simply check if password is provided, if not use SSO, future: automatic SSO login / Button
       return;
     }
 
     error.value = "";
     status.value = "Connecting…";
+
+    if (!credentials.password) {
+      console.log("no password");
+      /*
+      // handle OIDC client / login ...
+      // maybe something like: https://github.com/zhazhazhu/vue3-oidc
+
+      //VITE_JMAP_OIDC_CONFIG={"authority": "https://sso.example.com", "clientId": "clientid8575765", "redirectUri": "http://localhost:3001/oidc-callback", "popupRedirectUri": "http://localhost:3001/oidc-popup-callback", "responseType": "id_token token", "scope": "openid email", "automaticSilentRenew": true, "automaticSilentSignin": false, "silentRedirectUri": "http://localhost:3001/silent-renew-oidc.html"}
+      //export const oidcSettings = JSON.parse(process.env.VITE_JMAP_OIDC_CONFIG)
+      
+      var _token;
+      
+      client.value = new JMAPClient({
+        baseUrl: import.meta.env.VITE_JMAP_SERVER_URL || "https://mail.tb.pro",
+        username: null,
+        password: null,
+        token: _token,
+      });
+      await client.value.fetchSession();
+      */
+    }
 
     try {
       client.value = new JMAPClient({
