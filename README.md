@@ -47,9 +47,21 @@ export VITE_JMAP_SERVER_URL="https://your-jmap-server.com"
 echo "VITE_JMAP_SERVER_URL=https://your-jmap-server.com" > .env.local
 ```
 
+For using OIDC add:
+
+```bash
+VITE_APP_OIDC_CONFIG={"authority": "http://localhost:8080/auth/v1", "client_id": "myClientID", "client_secret":  "MyClientSecret", "scope": "openid email", "redirect_uri": "http://localhost:3000/callback", "post_logout_redirect_uri": "http://localhost:3000/", "popup_redirect_uri": "http://localhost:3000/oidc-popup-callback", "response_type": "code", "response_mode": "query", "monitorSession": true, "automaticSilentRenew": false, "automaticSilentSignin": false, "filterProtocolClaims": true, "loadUserInfo": false, "silentRedirectUri": "http://localhost:3000/silent-renew-oidc.html", "metadata": {"issuer": "http://localhost:8080/auth/v1","jwks_uri": "http://localhost:8080/auth/v1/oidc/certs","authorization_endpoint": "http://localhost:8080/auth/v1/oidc/authorize","userinfo_endpoint": "http://localhost:8080/auth/v1/oidc/userinfo","end_session_endpoint": "http://localhost:8080/auth/v1/oidc/logout","token_endpoint": "http://localhost:8080/auth/v1/oidc/token"}}
+```
+
+VITE_APP_OIDC_CONFIG will be used as settings for oidc-client-ts Usermanager.
+
+For reference, read this:
+[OidcClientSettings](https://authts.github.io/oidc-client-ts/interfaces/UserManagerSettings.html)
+
+
 ## Usage
 
-1. **Login**: Enter your username and app password for the JMAP server
+1. **Login**: Enter your username and app password for the JMAP server or click the SSO button for IDC login
 2. **Browse Mailboxes**: Use the sidebar to navigate between different mailboxes
 3. **View Emails**: Click on emails in the message list to view their content
 4. **Compose**: Click the "Compose" button to write new emails
@@ -79,4 +91,5 @@ src/
 - **Quill.js**: Rich text editor for email composition
 - **@tanstack/vue-query**: Syncing client/server data state
 - **@tanstack/vue-virtual**: High-performance virtual scrolling
+
 
