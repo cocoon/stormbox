@@ -61,7 +61,7 @@ For reference, read this:
 
 ## Usage
 
-1. **Login**: Enter your username and app password for the JMAP server or click the SSO button for IDC login
+1. **Login**: Enter your username and app password for the JMAP server or click the SSO button for OIDC login
 2. **Browse Mailboxes**: Use the sidebar to navigate between different mailboxes
 3. **View Emails**: Click on emails in the message list to view their content
 4. **Compose**: Click the "Compose" button to write new emails
@@ -91,5 +91,6 @@ src/
 - **Quill.js**: Rich text editor for email composition
 - **@tanstack/vue-query**: Syncing client/server data state
 - **@tanstack/vue-virtual**: High-performance virtual scrolling
+
 
 
