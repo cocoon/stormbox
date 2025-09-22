@@ -7,15 +7,15 @@ const b64 = (s) => btoa(String.fromCharCode(...te.encode(s)));
 
 export class JMAPClient {
   constructor({ baseUrl, username, password, token }) {
+    console.log("[JMAPClient] [constructor] baseUrl: ", baseUrl );
+    console.log("[JMAPClient] [constructor] username: ", username );
+    console.log("[JMAPClient] [constructor] password: ", password );
+    console.log("[JMAPClient] [constructor] token: ", token );
+    
     this.base = (baseUrl || "").replace(/\/$/, "");
     this.sessionUrl = this.base + "/.well-known/jmap";
     
-    if (this.token === undefined) {
-      this.AUTH = "Basic " + b64(`${username}:${password}`);
-    }
-    else {
-      this.AUTH = "Bearer " + token;
-    }
+    this.AUTH = token === null ? "Basic " + b64(`${username}:${password}`) : "Bearer " + token;
 
     this.apiUrl = null;
     this.accountId = null;
@@ -35,7 +35,10 @@ export class JMAPClient {
 
   /* ---------- low-level ---------- */
   async fetchSession() {
+    console.log("[fetchSession] this.AUTH: ", this.AUTH);
+  
     let r = await fetch(this.sessionUrl, {
+      //headers: { Accept: "application/json", Authorization: this.AUTH },
       headers: { Accept: "application/json", Authorization: this.AUTH },
       mode: "cors",
       credentials: "omit",
@@ -551,5 +554,3 @@ export class JMAPClient {
 }
 
 export const JMAP = { Client: JMAPClient, NS: { CORE, MAIL, SUBMIT } };
-
-
