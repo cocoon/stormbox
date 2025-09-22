@@ -44,7 +44,7 @@ export default {
 <template>
   <div id="app">
     <!-- Login Form -->
-    <LoginForm :connected="connected" :status="status" :error="error" @connect="connect" />
+    <LoginForm :connected="connected" :status="status" :error="error" @connect="connect" @authSSO="authSSO" />
 
     <!-- Header -->
     <header v-if="connected">
@@ -99,4 +99,3 @@ export default {
 <style>
 /* Global styles are imported from assets/styles.css */
 </style>
-
