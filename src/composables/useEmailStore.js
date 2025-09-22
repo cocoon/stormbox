@@ -1,6 +1,8 @@
 import { ref, reactive, computed, onMounted } from "vue";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/vue-query";
 import { JMAPClient } from "../services/jmap.js";
+import { OidcClient, Log, Logger, UserManager, WebStorageStateStore, User } from "oidc-client-ts";
+//import { OidcClient, Log, Logger, UserManager, WebStorageStateStore, User } from "../../../oidc-client-ts/src"; // from local folder for debugging
 
 export function useEmailStore() {
   // Connection state
@@ -95,45 +97,219 @@ export function useEmailStore() {
       .join(", ");
   };
 
+  //const delay = ms => new Promise(resolve => setTimeout(resolve, ms))
+  //await delay(5000) /// waiting X millisecond.
+
+  const urlParams = new URLSearchParams(window.location.search);
+  
+  Log.setLevel(Log.DEBUG);
+  Log.setLogger(console);
+  const logger = new Logger("TB").create("useEmailStore");
+  
+  const env_oidcSettings = import.meta.env.VITE_APP_OIDC_CONFIG || null;
+  console.log("env_oidcSettings: ", env_oidcSettings);
+  
+  var oidcSettings = null;
+  var userManager = null;
+  
+  if(env_oidcSettings !== null) {
+    oidcSettings = JSON.parse(env_oidcSettings) || null;
+    
+    //userStore must be already set before creating new UserManager to be able to loadUser from localStorage on LoginForm to auto login
+    oidcSettings.userStore = new WebStorageStateStore({ store: window.localStorage });
+    console.log("oidcSettings: ", oidcSettings);
+    
+    userManager = new UserManager(oidcSettings);
+    console.log("userManager: ", userManager);
+   
+    
+    userManager.getUser().then((user) =>
+    {
+        if(user !== 'undefined' && user !== null) {
+          logger.debug("### userManager getUser user:", user);
+          console.log("userManager getUser user: ", user);
+          connectSSO({username: user.profile.email, password: null}, user.access_token);
+        }
+        else {
+        if(urlParams.has('code')) {        
+          authSSO(null);
+          }
+        }
+    });
+  }
+  
+  async function loginWithPopup() {
+    try {
+      await userManager.signinPopup();
+    } catch (error) {
+      console.error("Popup login failed:", error);
+    }
+  }
+
+
+  /*
+   * Get the current access token
+   */
+  async function getAccessToken(userManager) {
+      const user = await userManager.getUser();
+      if (user && user.access_token) {
+          return user.access_token;
+      }
+      else {
+        error.value = "user was empty";
+        status.value = "Failed.";
+      }
+
+      return null;
+  }
+ 
+
   // Connect to JMAP server
   const connect = async (credentials) => {
-    //if (!credentials || !credentials.username || !credentials.password) {
-    //  error.value = "Username and password required.";
-    if (!credentials || !credentials.username) {
-      error.value = "Username required."; //for now simply check if password is provided, if not use SSO, future: automatic SSO login / Button
+    console.log("[connect] credentials: ", credentials);
+    if (!credentials || !credentials.username || !credentials.password) {
+      error.value = "Username and password required.";
       return;
     }
 
     error.value = "";
     status.value = "Connecting…";
 
-    if (!credentials.password) {
-      console.log("no password");
-      /*
-      // handle OIDC client / login ...
-      // maybe something like: https://github.com/zhazhazhu/vue3-oidc
-
-      //VITE_JMAP_OIDC_CONFIG={"authority": "https://sso.example.com", "clientId": "clientid8575765", "redirectUri": "http://localhost:3001/oidc-callback", "popupRedirectUri": "http://localhost:3001/oidc-popup-callback", "responseType": "id_token token", "scope": "openid email", "automaticSilentRenew": true, "automaticSilentSignin": false, "silentRedirectUri": "http://localhost:3001/silent-renew-oidc.html"}
-      //export const oidcSettings = JSON.parse(process.env.VITE_JMAP_OIDC_CONFIG)
-      
-      var _token;
-      
-      client.value = new JMAPClient({
-        baseUrl: import.meta.env.VITE_JMAP_SERVER_URL || "https://mail.tb.pro",
-        username: null,
-        password: null,
-        token: _token,
-      });
-      await client.value.fetchSession();
-      */
-    }
-
     try {
       client.value = new JMAPClient({
         baseUrl: import.meta.env.VITE_JMAP_SERVER_URL || "https://mail.tb.pro",
         username: credentials.username.trim(),
         password: credentials.password,
+        token: null,
       });
+      
+      await loadMailbox(credentials, client);
+      
+    }catch (e) {
+      status.value = "Failed.";
+      error.value =
+        e.message +
+        (e.message?.includes("Failed to fetch")
+          ? "\nLikely CORS/network issue."
+          : "");
+    }
+  };
+ 
+  // Connect to JMAP server
+  const authSSO = async (credentials) => {
+
+    error.value = "";
+    status.value = "SSO Auth …";
+
+    if(env_oidcSettings === null || env_oidcSettings === 'undefined') {
+      status.value = "Failed.";
+      error.value = "OIDC Settings could not be initialized. VITE_APP_OIDC_CONFIG not set?";
+    }
+
+    userManager.settings.userStore = new WebStorageStateStore({ store: window.localStorage });
+    
+    userManager.events.addAccessTokenExpiring(() =>
+    {
+        logger.debug("### events.addAccessTokenExpiring");
+        console.log("events.addAccessTokenExpiring");
+    
+        userManager.signinSilent({scope: settings.scope, response_type: settings.response_type})
+            //.then((user: CoreApi.Authentication.Interfaces.OidcClientUser) =>
+            .then((user) =>
+            {
+                logger.debug("### events.addAccessTokenExpiring signinSilent handleUser");
+                console.log("events.addAccessTokenExpiring signinSilent handleUser");
+                handleUser(user); // This function just set the current user
+            })
+            //.catch((error: Error) =>
+            .catch((error) =>
+            {
+                userManager.getUser()
+                    //.then((user: CoreApi.Authentication.Interfaces.OidcClientUser) =>
+                    .then((user) =>
+                    {
+                        logger.debug("### events.addAccessTokenExpiring signinSilent catch handleUser");
+                        console.log("events.addAccessTokenExpiring signinSilent catch handleUser");
+                        handleUser(user);
+                    });
+            });
+    });
+        
+        
+        
+        
+      userManager.events.addUserLoaded(newUser => {
+            logger.debug("### USER LOADED EVENT");
+            console.log("USER LOADED EVENT");
+            console.log("USER LOADED EVENT newUser: ", newUser);
+            
+            if(credentials === null || credentials.username === null || credentials.username === 'undefined') {
+              credentials = { username: newUser.profile.email, password: null, token: null};
+            }
+            
+            console.log("[USER LOADED EVENT] storeUser: ", newUser);
+            userManager.storeUser(newUser);
+
+            //alert("USER LOADED EVENT newUser.access_token: " + newUser.access_token);
+            
+            connectSSO(credentials, newUser.access_token);
+
+            userManager.getUser().then(usr => {
+              //store.dispatch("getUserInfo", usr?.profile.sub) // load the user from my api               
+            });
+      });
+      
+      
+      userManager.events.addAccessTokenExpired(() => {
+        logger.debug("### addAccessTokenExpired EVENT");
+        userManager.signoutRedirect();
+      });
+    
+      userManager.events.addSilentRenewError(error => {
+        logger.debug("### addSilentRenewError EVENT");
+        console.log("ERROR RENEWING ACCESS TOKEN.");
+        console.log(error);
+      });
+      
+      
+      console.log(urlParams.has('code')) 
+
+      userManager.signinRedirectCallback()
+              .then(() =>
+              { 
+                  logger.debug("### userManager.signinRedirectCallback");
+              }).catch(function(err) {
+          console.error(err);
+          window.location.href = sessionStorage.getItem("redirectedUri") ?? "../";
+      });
+      
+      userManager.signinPopupCallback()
+              .then(() =>
+              { 
+                  logger.debug("### userManager.signinPopupCallback");
+              });
+      if(!urlParams.has('code')) {        
+        await userManager.signinRedirect();
+        //await loginWithPopup();
+      }     
+  };
+
+  const connectSSO = async (credentials, _token) => {
+  
+  client.value = new JMAPClient({
+                baseUrl: import.meta.env.VITE_JMAP_SERVER_URL || "https://mail.tb.pro",
+                username: null,
+                password: null,
+                token: _token,
+              });
+   
+   await loadMailbox(credentials, client);
+   
+  
+  };
+
+  const loadMailbox = async (credentials, client) => {
+    try { 
       await client.value.fetchSession();
 
       mailboxes.value = await client.value.listMailboxes();
@@ -182,7 +358,7 @@ export function useEmailStore() {
           ? "\nLikely CORS/network issue."
           : "");
     }
-  };
+  }
 
   const normalizeEmails = (emails) =>
     emails.map((m) => ({
@@ -999,6 +1175,8 @@ export function useEmailStore() {
 
     // Actions
     connect,
+    authSSO,
+    connectSSO,
     switchMailbox,
     refreshCurrentMailbox,
     setView,
