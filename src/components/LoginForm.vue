@@ -8,19 +8,29 @@ export default {
     status: String,
     error: String
   },
-  emits: ['connect'],
+  emits: ['connect', 'authSSO'],
   setup(props, { emit }) {
-    const username = ref('')
+    let username = ref('')
     const password = ref('')
+    
+    let stored_username = localStorage.getItem("jmap.username");
+    if(stored_username !== 'undefined' && stored_username !== null) {
+      username = stored_username;
+    }
 
     const connect = () => {
       emit('connect', { username: username.value, password: password.value })
+    }
+    
+    const authSSO = () => {
+      emit('authSSO', { username: username.value, password: null })
     }
 
     return {
       username,
       password,
-      connect
+      connect,
+      authSSO
     }
   }
 }
@@ -35,7 +45,8 @@ export default {
       <div class="row">
         <input v-model.trim="username" placeholder="Username" autocomplete="username" />
         <input v-model="password" placeholder="App password" type="password" autocomplete="current-password" />
-        <button @click="connect">Connect</button>
+        <button @click="connect">Connect</button>   
+        <button @click="authSSO">SSO</button>   
       </div>
       <div id="authMeta" class="meta">{{ status }}</div>
       <div id="authErr" class="err" v-if="error">{{ error }}</div>
